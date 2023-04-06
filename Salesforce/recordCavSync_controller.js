@@ -1,12 +1,20 @@
 ({
   f9libLoaded: function (cmp, evt, helper) {
-    // This customization sets the Salesforce.salesforce_id CAV on the call to the record id of the object selected in the screen pop
-    // that is currently in focus before dispositioning a call
+    // This customization sets the Salesforce.salesforce_id CAV on the call
+    // when the agent selects a new related-to record in the adapter and
+    // also asks the agent to verify the disposition action if the record
+    // selected does not match the record in focus.
+
+    // IMPORTANT - The Salesforce.salesforce_id CAV MUST be on the 
+    // campaign profile layout or this customization will not work.
+
     const hookApi = window.Five9.CrmSdk.hookApi();
     const interactionApi = window.Five9.CrmSdk.interactionApi();
 
     let selectedRecordId = "";
 
+    // log messages to the console with a timestamp and prefix for 
+    // easy identification in the browser console
     function logMessage(message, prefix = "[*****]", mode = "log") {
       const allowedModes = ["error", "warn", "log", "info", "debug"];
       const d = new Date().toLocaleString();
@@ -15,10 +23,11 @@
       }
     }
 
+    // dictionary to hold the domain CAVs for easy lookup
     let cavsDict = {};
 
+    // update the Salesforce.salesforce_id CAV on the call
     function updateSalesforceIdCAV(recordId) {
-      // IMPORTANT - The CAV MUST be on the campaign profile layout
       let updateCavList = [
         {
           id: `${cavsDict["Salesforce"]["salesforce_id"]["id"]}`,
@@ -32,7 +41,9 @@
       });
     }
 
+    // register callbacks to the interaction API
     interactionApi.subscribe({
+
       // on call accepted, get the domain CAVs and map to a dictionary for easy lookup
       callStarted: (startedCall) => {
         interactionApi
