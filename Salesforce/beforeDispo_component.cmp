@@ -3,7 +3,7 @@
     <force:recordData aura:id="recordLoader"
                       recordId="{!v.recordId}"
                       targetFields="{!v.record}"
-                      fields="Name,Account.Name,Opportunity.Name"
+                      fields="Name,RecordType.Name,Account.Name,Opportunity.Name"
                       mode="VIEW"/>
     <ltng:require scripts="{!$Resource.five9_plugin_api}" afterScriptsLoaded="{!c.f9libLoaded}"/>
     <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
