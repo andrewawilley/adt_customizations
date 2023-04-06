@@ -1,20 +1,17 @@
 ({
   f9libLoaded: function (cmp, evt, helper) {
-    // a lightning component that uses the Five9 SDK to set the Salesforce record Id that is currently in focus before dispositioning a call
+    // This customization sets the Salesforce.salesforce_id CAV on the call to the record id of the object selected in the screen pop
+    // that is currently in focus before dispositioning a call
     const hookApi = window.Five9.CrmSdk.hookApi();
     const interactionApi = window.Five9.CrmSdk.interactionApi();
 
     let selectedRecordId = "";
 
-    function logMessage(message, prefix = "[*****]", mode = "debug") {
-      var d = new Date();
-      var n = d.toLocaleString();
-      if (mode === "debug") {
-        console.debug(`${n} ${prefix} ${message}`);
-      } else if (mode === "error") {
-        console.error(`${n} ${prefix} ${message}`);
-      } else {
-        console.log(`${n} ${prefix} ${message}`);
+    function logMessage(message, prefix = "[*****]", mode = "log") {
+      const allowedModes = ["error", "warn", "log", "info", "debug"];
+      const d = new Date().toLocaleString();
+      if (allowedModes.includes(mode)) {
+        console[mode](`${d} ${prefix} ${message}`);
       }
     }
 
@@ -96,7 +93,7 @@
       },
 
       // on disposition, check if the CAV is set to the correct record id
-      // NOTE - it is possible to still have the CAV set to the wrong record id 
+      // NOTE - it is possible to still have the CAV set to the wrong record id
       //        if the agent disposition timer expires and the call is dispositioned
       beforeDisposition: function (dispositionData) {
         logMessage(`beforeDisposition ${JSON.stringify(dispositionData)}`);
