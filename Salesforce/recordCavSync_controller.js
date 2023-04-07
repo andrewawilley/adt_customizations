@@ -29,17 +29,18 @@
     let cavsDict = {};
     // tracking variable for the selected record id
     let selectedRecordId = "";
+    let currentInteractionId = "";
 
     // update the Salesforce.salesforce_id CAV on the call
-    function updateSalesforceIdCAV(recordId) {
+    function updateSalesforceIdCAV(salesforceId) {
       let updateCavList = [
         {
-          id: `${cavsDict["Salesforce"]["salesforce_id"]["id"]}`,
-          value: recordId,
+          id: cavsDict.Salesforce.salesforce_id.id,
+          value: salesforceId,
         },
       ];
       logMessage(`CAV update with cavList: ${JSON.stringify(updateCavList)}`);
-      interactionApi.setCav(updateCavList);
+      interactionApi.setCav(interactionId, updateCavList);
       logMessage(`CAV update complete`);
     }
 
@@ -49,6 +50,7 @@
       // on call accepted, get the domain CAVs and map to a dictionary for easy lookup
       callStarted: (startedCall) => {
         logMessage(`Call Started ${JSON.stringify(startedCall)}`);
+        currentInteractionId = startedCall.callData.interactionId;
         interactionApi
           .getCav({ interactionId: startedCall.callData.interactionId })
           .then((domainCavs) => {
