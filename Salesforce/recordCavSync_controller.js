@@ -10,21 +10,25 @@
 
     const hookApi = window.Five9.CrmSdk.hookApi();
     const interactionApi = window.Five9.CrmSdk.interactionApi();
-
-    let selectedRecordId = "";
+  
+    // initialize logging variables
+    const defaultLoggingMode = "log";
 
     // log messages to the console with a timestamp and prefix for 
     // easy identification in the browser console
-    function logMessage(message, prefix = "[*****]", mode = "log") {
-      const allowedModes = ["error", "warn", "log", "info", "debug"];
+    function logMessage(message, prefix = "[*****]", mode = defaultLoggingMode) {
+      const allowedModes = ["error", "warn", "log", "info", "debug"];    
       const d = new Date().toLocaleString();
       if (allowedModes.includes(mode)) {
         console[mode](`${d} ${prefix} ${message}`);
       }
     }
 
+    // initialize f9libLoaded scope variables
     // dictionary to hold the domain CAVs for easy lookup
     let cavsDict = {};
+    // tracking variable for the selected record id
+    let selectedRecordId = "";
 
     // update the Salesforce.salesforce_id CAV on the call
     function updateSalesforceIdCAV(recordId) {
@@ -51,8 +55,7 @@
           .then((domainCavs) => {
             domainCavs.forEach((cav) => {
               cavsDict[cav.group] = cavsDict[cav.group] || {};
-              cavsDict[cav.group][cav.name] =
-                cavsDict[cav.group][cav.name] || {};
+              cavsDict[cav.group][cav.name] = cavsDict[cav.group][cav.name] || {};
               cavsDict[cav.group][cav.name]["id"] = cav.id;
               cavsDict[cav.group][cav.name]["type"] = cav.type;
               cavsDict[cav.group][cav.name]["restrictions"] = cav.restrictions;
@@ -71,7 +74,7 @@
         let urlParts = selectedObject.crmObject.metadata.url.split("/");
         // for each part of the url, check if it is the record id
         urlParts.forEach((part) => {
-          if (part.indexOf("recordId") > -1) {
+          if (part.includes(selectedObjectRecordId)) {
             selectedRecordId = urlParts[recordIdIndex];
             logMessage(`Selected Record Id IS NOW: ${selectedObjectRecordId}`);
             // IMPORTANT - The CAV MUST be on the campaign profile layout
@@ -117,7 +120,7 @@
         if (selectedRecordId != inFocusRecordId) {
           // obtain confirmation from the agent before proceeding
           logMessage(
-            `Selected Record Id: ${selectedRecordId} does not match ${inFocusRecordId}}`
+            `Selected Record Id: ${selectedRecordId} does not match ${inFocusRecordId}`
           );
           return Promise.resolve({
             status: {
@@ -143,3 +146,5 @@
     recordLoader.reloadRecord();
   },
 });
+
+
