@@ -13,13 +13,13 @@
   
     // initialize logging variables
     const defaultLoggingMode = "log";
+    const allowedLoggingModes = ["error", "warn", "log", "info", "debug"];   
 
     // log messages to the console with a timestamp and prefix for 
     // easy identification in the browser console
-    function logMessage(message, prefix = "[*****]", mode = defaultLoggingMode) {
-      const allowedModes = ["error", "warn", "log", "info", "debug"];    
+    function logMessage(message, prefix = "[*****]", mode = defaultLoggingMode) { 
       const d = new Date().toLocaleString();
-      if (allowedModes.includes(mode)) {
+      if (allowedLoggingModes.includes(mode)) {
         console[mode](`${d} ${prefix} ${message}`);
       }
     }
@@ -39,10 +39,8 @@
         },
       ];
       logMessage(`CAV update with cavList: ${JSON.stringify(updateCavList)}`);
-      interactionApi.setCav({
-        interactionId: selectedObject.interactionData.interactionId,
-        cavList: updateCavList,
-      });
+      interactionApi.setCav(updateCavList);
+      logMessage(`CAV update complete`);
     }
 
     // register callbacks to the interaction API
@@ -50,6 +48,7 @@
 
       // on call accepted, get the domain CAVs and map to a dictionary for easy lookup
       callStarted: (startedCall) => {
+        logMessage(`Call Started ${JSON.stringify(startedCall)}`);
         interactionApi
           .getCav({ interactionId: startedCall.callData.interactionId })
           .then((domainCavs) => {
@@ -66,21 +65,33 @@
           });
       },
 
+      // on call accepted, get the domain CAVs and map to a dictionary for easy lookup
+      callAccepted: (acceptedCall) => {
+        logMessage(`Call Started ${JSON.stringify(acceptedCall)}`);
+
+      },
+
       // on object selected, update the CAV
       objectSelected: (selectedObject) => {
         logMessage(`Object Selected ${JSON.stringify(selectedObject)}`);
 
-        let selectedObjectRecordId = selectedObject.crmObject.id;
-        let urlParts = selectedObject.crmObject.metadata.url.split("/");
-        // for each part of the url, check if it is the record id
-        urlParts.forEach((part) => {
-          if (part.includes(selectedObjectRecordId)) {
-            selectedRecordId = urlParts[recordIdIndex];
-            logMessage(`Selected Record Id IS NOW: ${selectedObjectRecordId}`);
-            // IMPORTANT - The CAV MUST be on the campaign profile layout
-            updateSalesforceIdCAV(selectedRecordId);
-          }
-        });
+        let selectedObjectRecordId = selectedObject.crmObject.id || undefined;
+        logMessage(`Selected Record Id: ${selectedObjectRecordId}`);
+        if(selectedObjectRecordId != undefined) {
+          let urlParts = selectedObject.crmObject.metadata.url.split("/");
+          logMessage(`URL Parts: ${JSON.stringify(urlParts)}`);
+          // for each part of the url, check if it is the record id
+          urlParts.forEach((part) => {
+            if (part.includes(selectedObjectRecordId)) {
+              selectedRecordId = part;
+              logMessage(`Found in URL: ${selectedRecordId}`);
+            }
+          })
+        }
+
+        logMessage(`Selected Record Id IS NOW: ${selectedObjectRecordId}`);
+        // IMPORTANT - The CAV MUST be on the campaign profile layout
+        updateSalesforceIdCAV(selectedRecordId);;
       },
 
       // call accepted comes after call start event, leaving here in case a future action is needed
@@ -146,5 +157,3 @@
     recordLoader.reloadRecord();
   },
 });
-
-
