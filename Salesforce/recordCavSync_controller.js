@@ -27,6 +27,7 @@
     // initialize f9libLoaded scope variables
     // dictionary to hold the domain CAVs for easy lookup
     let cavsDict = {};
+    let domainCavs = [];
     // tracking variable for the selected record id
     let selectedRecordId = "";
     let currentInteractionId = "";
@@ -40,7 +41,11 @@
         },
       ];
       logMessage(`CAV update with cavList: ${JSON.stringify(updateCavList)}`);
-      interactionApi.setCav(interactionId, updateCavList);
+      interactionApi.setCav(
+        {
+          interactionId: currentInteractionId, 
+          cavList: updateCavList
+        });
       logMessage(`CAV update complete`);
     }
 
@@ -53,7 +58,9 @@
         currentInteractionId = startedCall.callData.interactionId;
         interactionApi
           .getCav({ interactionId: startedCall.callData.interactionId })
-          .then((domainCavs) => {
+          .then((domainCavsReturned) => {
+            domainCavs = domainCavsReturned;
+            logMessage(`Interaction API got cavList: ${JSON.stringify(domainCavs)}`);
             domainCavs.forEach((cav) => {
               cavsDict[cav.group] = cavsDict[cav.group] || {};
               cavsDict[cav.group][cav.name] = cavsDict[cav.group][cav.name] || {};
@@ -89,6 +96,8 @@
               logMessage(`Found in URL: ${selectedRecordId}`);
             }
           })
+        } else {
+          selectedRecordId = "";
         }
 
         logMessage(`Selected Record Id IS NOW: ${selectedObjectRecordId}`);
