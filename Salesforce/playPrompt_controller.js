@@ -33,8 +33,8 @@
     })
 
     class consoleLogger {
-      constructor(prefix = undefined) {
-        this.prefix = prefix || defaultLoggingPrefix;
+      constructor(prefix = defaultLoggingPrefix) {
+        this.prefix = prefix
 
         // for each mode in allowedLoggingModes, create a function
         // that will log the message with the mode
