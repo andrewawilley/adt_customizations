@@ -7,17 +7,30 @@
 
     // IMPORTANT - The Salesforce.salesforce_id CAV MUST be on the 
     // campaign profile layout or this customization will not work.
-
+    class DomainCAVs {
+      constructor(domainCavsRaw) {
+        this.domainCavsRaw = domainCavsRaw;
+        
+        domainCavsRaw.forEach((cav) => {
+          this[cav.group] = this[cav.group] || {};
+          this[cav.group][cav.name] = this[cav.group][cav.name] || {};
+          this[cav.group][cav.name]["id"] = cav.id;
+          this[cav.group][cav.name]["type"] = cav.type;
+          this[cav.group][cav.name]["restrictions"] = cav.restrictions;
+        });
+      }      
+    }
     const hookApi = window.Five9.CrmSdk.hookApi();
     const interactionApi = window.Five9.CrmSdk.interactionApi();
   
-    // initialize logging variables
+    // initialize logging variables  
+    const defaultLoggingPrefix = "[*****]";
     const defaultLoggingMode = "log";
-    const allowedLoggingModes = ["error", "warn", "log", "info", "debug"];   
+    const allowedLoggingModes = ["error", "warn", "log", "info", "debug"]; 
 
     // log messages to the console with a timestamp and prefix for 
     // easy identification in the browser console
-    function logMessage(message, prefix = "[*****]", mode = defaultLoggingMode) { 
+    function logMessage(message, prefix = defaultLoggingPrefix, mode = defaultLoggingMode) { 
       const d = new Date().toLocaleString();
       if (allowedLoggingModes.includes(mode)) {
         console[mode](`${d} ${prefix} ${message}`);
@@ -26,8 +39,8 @@
 
     // initialize f9libLoaded scope variables
     // dictionary to hold the domain CAVs for easy lookup
-    let cavsDict = {};
-    let domainCavs = [];
+    let cavDefinitions = undefined;
+
     // tracking variable for the selected record id
     let selectedRecordId = "";
     let currentInteractionId = "";
@@ -36,7 +49,7 @@
     function updateSalesforceIdCAV(salesforceId) {
       let updateCavList = [
         {
-          id: cavsDict.Salesforce.salesforce_id.id,
+          id: cavDefinitions.Salesforce.salesforce_id.id,
           value: salesforceId,
         },
       ];
@@ -59,18 +72,8 @@
         interactionApi
           .getCav({ interactionId: startedCall.callData.interactionId })
           .then((domainCavsReturned) => {
-            domainCavs = domainCavsReturned;
-            logMessage(`Interaction API got cavList: ${JSON.stringify(domainCavs)}`);
-            domainCavs.forEach((cav) => {
-              cavsDict[cav.group] = cavsDict[cav.group] || {};
-              cavsDict[cav.group][cav.name] = cavsDict[cav.group][cav.name] || {};
-              cavsDict[cav.group][cav.name]["id"] = cav.id;
-              cavsDict[cav.group][cav.name]["type"] = cav.type;
-              cavsDict[cav.group][cav.name]["restrictions"] = cav.restrictions;
-            });
-            logMessage(
-              `Interaction API got cavList: ${JSON.stringify(cavsDict)}`
-            );
+            cavDefinitions = new DomainCAVs(domainCavsReturned);
+            logMessage(`Interaction API got cavList: ${JSON.stringify(cavDefinitions)}`);
           });
       },
 
