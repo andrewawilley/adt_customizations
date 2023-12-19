@@ -27,7 +27,7 @@
       "PREVIEW"
     ];
 
-    const targetPromptNamePlayOnConnect = `QRL`;
+    const promptNamePlayOnConnect = `QRL`;
     let f9UserId;
     let f9UserName;
 
@@ -144,9 +144,7 @@
 
         console2.log("Call Accepted:", interactionSubscriptionEvent);
         console2.log(`Current Interaction Id: ${currentInteractionId}`);
-        console2.log("TRYING TO PLAY PROMPT");
-        console.log(`********Playing Prompt ${targetPromptName}, f9UserId: ${f9UserId}, currentInteractionId: ${currentInteractionId}`)
-        playPromptByName(targetPromptName, f9UserId, currentInteractionId);
+        playPromptByName(promptNamePlayOnConnect, f9UserId, currentInteractionId);
       },
       callEnded: (interactionSubscriptionEvent) => {
         console2.log("Call Ended:", interactionSubscriptionEvent);
@@ -165,8 +163,8 @@
           console2.debug(`payLoad.state: ${payLoad.state}`)
           console2.debug(`payLoad.callType: ${payLoad.callType}`)
           console2.debug(`promptPlayOnCallTypes.includes(payLoad.callType): ${promptPlayOnCallTypes.includes(payLoad.callType)}`)
-          console2.debug(`Playing Prompt ${targetPromptNamePlayOnConnect}, f9UserId: ${f9UserId}, currentInteractionId: ${payLoad.id}`)
-          playPromptByName(targetPromptNamePlayOnConnect, f9UserId, payLoad.id);
+          console2.debug(`Playing Prompt ${promptNamePlayOnConnect}, f9UserId: ${f9UserId}, currentInteractionId: ${payLoad.id}`)
+          playPromptByName(promptNamePlayOnConnect, f9UserId, payLoad.id);
         }
       }
     });
