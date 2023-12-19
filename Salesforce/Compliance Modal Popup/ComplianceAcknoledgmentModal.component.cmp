@@ -1,0 +1,7 @@
+<aura:component access="global">
+    <div class="slds-modal__container">
+        <div class="slds-box slds-theme_info">
+            <p>By using this system, I acknowledge that I'm aware of tracking, etc.</p>
+        </div>
+    </div>
+</aura:component>

@@ -48,8 +48,9 @@
         });
       }
     }
+    const console2 = new consoleLogger();
 
-    const cons = new consoleLogger();
+    console2.info("Customization loaded.")
 
     class DomainCAVs {
       constructor(cavList) {
@@ -58,7 +59,7 @@
           this[cav.group] = this[cav.group] || {};
           this[cav.group][cav.name] = cav;
         });
-        cons.debug("CAV Definitions:", this);
+        console2.debug("CAV Definitions:", this);
       }
     }
 
@@ -78,13 +79,13 @@
           value: salesforceId,
         },
       ];
-      cons.log("CAV update with cavList:", updateCavList);
+      console2.log("CAV update with cavList:", updateCavList);
       interactionApi.setCav(
         {
           interactionId: currentInteractionId,
           cavList: updateCavList
         });
-      cons.log(`CAV update complete`);
+      console2.log(`CAV update complete`);
     }
 
     // register callbacks to the interaction API
@@ -92,50 +93,50 @@
 
       // on call accepted, get the domain CAVs and map to a dictionary for easy lookup
       callStarted: (startedCall) => {
-        cons.log("Call Started", startedCall);
+        console2.log("Call Started", startedCall);
         currentInteractionId = startedCall.callData.interactionId;
         interactionApi
           .getCav({ interactionId: startedCall.callData.interactionId })
           .then((domainCavsReturned) => {
             cavDefinitions = new DomainCAVs(domainCavsReturned);
-            cons.log("Interaction API got cavList:", cavDefinitions);
+            console2.log("Interaction API got cavList:", cavDefinitions);
           });
       },
 
       // on call accepted, get the domain CAVs and map to a dictionary for easy lookup
       callAccepted: (acceptedCall) => {
-        cons.log(`Call Accepted ${JSON.stringify(acceptedCall)}`);
+        console2.log(`Call Accepted ${JSON.stringify(acceptedCall)}`);
 
       },
 
       // on object selected, update the CAV
       objectSelected: (selectedObject) => {
-        cons.log("Object Selected:", selectedObject);
+        console2.log("Object Selected:", selectedObject);
 
         let selectedObjectRecordId = selectedObject.crmObject.id || undefined;
-        cons.log("Selected Record Id:", selectedObjectRecordId);
+        console2.log("Selected Record Id:", selectedObjectRecordId);
         if (selectedObjectRecordId != undefined) {
           let urlParts = selectedObject.crmObject.metadata.url.split("/");
-          // cons.debug("URL Parts:", urlParts);
+          // console2.debug("URL Parts:", urlParts);
           // for each part of the url, check if it is the record id
           urlParts.forEach((part) => {
             if (part.includes(selectedObjectRecordId)) {
               selectedRecordId = part;
-              cons.log(`Found in URL: ${selectedRecordId}`);
+              console2.log(`Found in URL: ${selectedRecordId}`);
             }
           })
         } else {
           selectedRecordId = "";
         }
 
-        cons.log(`Selected Record Id IS NOW: ${selectedObjectRecordId}`);
+        console2.log(`Selected Record Id IS NOW: ${selectedObjectRecordId}`);
         // IMPORTANT - The CAV MUST be on the campaign profile layout
         updateSalesforceIdCAV(selectedRecordId);;
       },
 
       // call accepted comes after call start event, leaving here in case a future action is needed
       callAccepted: (acceptedCall) => {
-        cons.log("Call Accepted:", acceptedCall);
+        console2.log("Call Accepted:", acceptedCall);
       },
     });
 
@@ -143,7 +144,7 @@
     hookApi.registerApi({
       // on screen pop, set the selectedRecordId
       afterScreenPop: function (screenPopData) {
-        cons.log("afterScreenPop:", screenPopData);
+        console2.log("afterScreenPop:", screenPopData);
         // if only one screen pop object is returned, set the selected record id and update the CAV
         if (screenPopData.screenPopObjects.length === 1) {
           selectedRecordId = screenPopData.screenPopObjects[0].params.recordId;
@@ -160,16 +161,16 @@
       // NOTE - it is possible to still have the CAV set to the wrong record id
       //        if the agent disposition timer expires and the call is dispositioned
       beforeDisposition: function (dispositionData) {
-        cons.log("beforeDisposition:", dispositionData);
+        console2.log("beforeDisposition:", dispositionData);
         // get the in-focus record id from the component
         let inFocusRecordId = cmp.get("v.recordId");
-        cons.log(`Currently In-Focus Record Id: ${inFocusRecordId}`);
-        cons.log(`          Selected Record Id: ${selectedRecordId}`);
+        console2.log(`Currently In-Focus Record Id: ${inFocusRecordId}`);
+        console2.log(`          Selected Record Id: ${selectedRecordId}`);
 
         // update the CAVs on the call if mismatch between the current record id and the CAV
         if (selectedRecordId != inFocusRecordId) {
           // obtain confirmation from the agent before proceeding
-          cons.log(
+          console2.log(
             `Selected Record Id: ${selectedRecordId} does not match ${inFocusRecordId}`
           );
           return Promise.resolve({
@@ -180,13 +181,50 @@
             },
           });
         }
-        cons.log(`No CAV update required`);
+        console2.log(`No CAV update required`);
         return Promise.resolve({
           status: {
             statusCode: Five9.CrmSdk.HookStatusCode.Proceed,
           },
         });
       },
+    });
+
+    // subscribe to WsEvents
+    interactionApi.subscribeWsEvent({
+
+      // Event 4 is Interaction Updated
+      "4": function (payLoad, context) {
+        console2.debug("Interaction Updated")
+        console2.debug("context:", context)
+        console2.debug("context:", payLoad)
+      },
+
+      // Event 5 is Interaction Deleted (call ended and dispositioned)
+      "5": function (payLoad, context) {
+        console2.debug("Interaction Ended and Dispositioned")
+        console2.debug("context:", context)
+        console2.debug("context:", payLoad)
+      },
+      
+      // 8 - 10 are for Preview events
+      "8": function (payLoad, context) {
+        console2.debug("Preview Created")
+        console2.debug("context:", context)
+        console2.debug("context:", payLoad)
+      },
+      
+      "9": function (payLoad, context) {
+        console2.debug("Preview Deleted / Declined")
+        console2.debug("context:", context)
+        console2.debug("context:", payLoad)
+      },
+      
+      "10": function (payLoad, context) {
+        console2.debug("Preview Updated")
+        console2.debug("context:", context)
+        console2.debug("context:", payLoad)
+      }
     });
   },
 
