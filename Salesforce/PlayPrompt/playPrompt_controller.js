@@ -21,10 +21,10 @@
     const promptPlayOnCallTypes = [
       "AGENT",
       "QUEUE_CALLBACK",
-      "MANUAL",
+      //"MANUAL",
       "INBOUND",
-      "OUTBOUND",
-      "PREVIEW"
+      //"OUTBOUND",
+      //"PREVIEW"
     ];
 
     const promptNamePlayOnConnect = `QRL`;

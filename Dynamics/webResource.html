@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Five9 CRM SDK Demo</title>
+    <script type="text/javascript" src="ClientGlobalContext.js.aspx"></script>
+    <script type="text/javascript" src="https://app.five9.com/dev/sdk/crm/latest/five9.crm.sdk.js"></script>
+    
+    <script type="text/javascript">
+        // Function to show a basic alert modal with Auth Status
+        function showAuthAlert(authStatus, memberID) {
+            var alertStrings = { 
+                text: `Auth Status: ${authStatus ? 'Authenticated' : 'Not Authenticated'}\nMember ID: ${memberID}`, 
+                title: "Authentication Status" 
+            };
+            
+            var alertOptions = { height: 200, width: 450 };
+
+            Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
+                function() {
+                    console.log("Alert dialog closed");
+                }
+            );
+        }
+
+        // Function to show a global notification bar with Auth Status
+        function showGlobalNotification(authStatus, memberID) {
+            var notification = {
+                type: 2, // 2 is for warning, 1 is for info
+                level: "INFO", // Or "WARNING"
+                message: `Auth Status: ${authStatus ? 'Authenticated' : 'Not Authenticated'}\nMember ID: ${memberID}`,
+                action: {
+                    message: "Dismiss",
+                    actions: [{
+                        label: "Dismiss",
+                        eventHandler: function() {
+                            console.log("Notification dismissed.");
+                        }
+                    }]
+                }
+            };
+
+            Xrm.App.addGlobalNotification(notification).then(function(notificationId) {
+                console.log("Notification added with ID: " + notificationId);
+            });
+        }
+
+        // Function to show a confirm modal with Auth Status
+        function showAuthConfirm(authStatus, memberID) {
+            var confirmStrings = {
+                text: `Auth Status: ${authStatus ? 'Authenticated' : 'Not Authenticated'}\nMember ID: ${memberID}`,
+                title: "Authentication Status",
+                confirmButtonLabel: "Acknowledge",
+                cancelButtonLabel: "Close"
+            };
+
+            var confirmOptions = { height: 200, width: 450 };
+
+            Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
+                function(result) {
+                    if (result.confirmed) {
+                        console.log("User acknowledged the authentication status.");
+                    } else {
+                        console.log("User closed the confirmation dialog.");
+                    }
+                }
+            );
+        }
+
+        // Five9 Interaction API Initialization
+        const interactionApi = window.Five9.CrmSdk.interactionApi();
+
+        // Register callbacks to the interaction API
+        interactionApi.subscribe({
+            chatAccepted: (interactionSubscriptionEvent) => {
+                // Parse custom fields
+                let customFieldData = {};
+                interactionSubscriptionEvent.chatData.customFields.forEach((field) => {
+                    customFieldData[field.key] = field.value;
+                });
+
+                // Get the auth status and member ID from the custom fields
+                let authStatus = customFieldData['ChatVariables.authenticated'];
+                let memberID = customFieldData['ChatVariables.memberID'];
+
+                console.log(`Auth Status: ${authStatus}`);
+                console.log(`Member ID: ${memberID}`);
+
+                // Use one of the Dynamics modal/alert methods here:
+                // Option 1: Show basic alert modal
+                showAuthAlert(authStatus, memberID);
+
+                // Option 2: Show global notification bar
+                // showGlobalNotification(authStatus, memberID);
+
+                // Option 3: Show confirm modal
+                // showAuthConfirm(authStatus, memberID);
+            }
+        });
+    </script>
+
+</head>
+<body>
+    <!-- Body can be left empty as Dynamics will handle the UI based on the methods above -->
+</body>
+</html>
