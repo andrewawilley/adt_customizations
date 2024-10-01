@@ -1,24 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Five9 CRM SDK Demo</title>
     <script type="text/javascript" src="ClientGlobalContext.js.aspx"></script>
     <script type="text/javascript" src="https://app.five9.com/dev/sdk/crm/latest/five9.crm.sdk.js"></script>
-    
+
     <script type="text/javascript">
+
+        function addThirdPartyComponent(authStatus) {
+            window.Five9.CrmSdk.customComponentsApi().registerCustomComponents({
+                template: `<adt-components>
+                      <adt-component location="3rdPartyComp-li-chat-details-top" label="Member Details" style="flex-direction: column">
+                      <adt-input value="${authStatus}" id="authStatusCustomComponentInput" name="authStatus" label="Auth Status" placeholder="Authentication Status"
+                                   onchange="callTabInputCallback"></adt-input>
+                      </adt-component>                      
+                    </adt-components>
+                    `,
+                callbacks: {
+                    callTabInputCallback: function (params) {
+                        debugStream.debug({
+                            callee: arguments.callee.name,
+                            data: params
+                        });
+                    }
+                }
+            });
+
+        }
+
         // Function to show a basic alert modal with Auth Status
         function showAuthAlert(authStatus, memberID) {
-            var alertStrings = { 
-                text: `Auth Status: ${authStatus ? 'Authenticated' : 'Not Authenticated'}\nMember ID: ${memberID}`, 
-                title: "Authentication Status" 
+            var alertStrings = {
+                text: `Auth Status: ${authStatus ? 'Authenticated' : 'Not Authenticated'}\nMember ID: ${memberID}`,
+                title: "Authentication Status"
             };
-            
+
             var alertOptions = { height: 200, width: 450 };
 
             Xrm.Navigation.openAlertDialog(alertStrings, alertOptions).then(
-                function() {
+                function () {
                     console.log("Alert dialog closed");
                 }
             );
@@ -34,14 +57,14 @@
                     message: "Dismiss",
                     actions: [{
                         label: "Dismiss",
-                        eventHandler: function() {
+                        eventHandler: function () {
                             console.log("Notification dismissed.");
                         }
                     }]
                 }
             };
 
-            Xrm.App.addGlobalNotification(notification).then(function(notificationId) {
+            Xrm.App.addGlobalNotification(notification).then(function (notificationId) {
                 console.log("Notification added with ID: " + notificationId);
             });
         }
@@ -58,7 +81,7 @@
             var confirmOptions = { height: 200, width: 450 };
 
             Xrm.Navigation.openConfirmDialog(confirmStrings, confirmOptions).then(
-                function(result) {
+                function (result) {
                     if (result.confirmed) {
                         console.log("User acknowledged the authentication status.");
                     } else {
@@ -87,6 +110,9 @@
                 console.log(`Auth Status: ${authStatus}`);
                 console.log(`Member ID: ${memberID}`);
 
+                // Add a custom component to the chat details tab
+                addThirdPartyComponent(authStatus);
+
                 // Use one of the Dynamics modal/alert methods here:
                 // Option 1: Show basic alert modal
                 showAuthAlert(authStatus, memberID);
@@ -101,7 +127,9 @@
     </script>
 
 </head>
+
 <body>
     <!-- Body can be left empty as Dynamics will handle the UI based on the methods above -->
 </body>
+
 </html>
