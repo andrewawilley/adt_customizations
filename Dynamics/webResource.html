@@ -104,18 +104,16 @@
                 });
 
                 // Get the auth status and member ID from the custom fields
-                let authStatus = customFieldData['ChatVariables.authenticated'];
-                let memberID = customFieldData['ChatVariables.memberID'];
+                let authStatus = customFieldData['chatSessionTrackingData.authStatus'];
 
                 console.log(`Auth Status: ${authStatus}`);
-                console.log(`Member ID: ${memberID}`);
 
                 // Add a custom component to the chat details tab
-                addThirdPartyComponent(authStatus);
+                //addThirdPartyComponent(authStatus);
 
                 // Use one of the Dynamics modal/alert methods here:
                 // Option 1: Show basic alert modal
-                showAuthAlert(authStatus, memberID);
+                //showAuthAlert(authStatus, memberID);
 
                 // Option 2: Show global notification bar
                 // showGlobalNotification(authStatus, memberID);

@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Five9 Desktop Toolkit</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+
+    <style>
+        #iframeContainer {
+            padding: 20px;
+            min-height: 700px;
+            min-width: 500px;
+        }
+    </style>
+</head>
+
+<body class="flex">
+    <div class="w-1/8 bg-gray-200">
+        <iframe id="iframeContainer" src="" class="h-96 w-full"></iframe>
+    </div>
+    <div class="w-3/4 bg-gray-100 p-4">
+        <form id="adapterForm">
+            <div class="mb-4">
+                <label for="adapterUrl" class="block text-gray-700 mb-2">Adapter URL</label>
+                <input type="text" id="adapterUrl" name="adapterUrl"
+                    value="https://app.five9.com/clients/integrations/adt.main.html"
+                    class="border border-gray-400 p-2 w-full">
+            </div>
+            <div class="mb-4">
+                <label for="ssoLoginUrl" class="block text-gray-700 mb-2">IdP Initiated Login URL for SSO</label>
+                <input type="text" id="ssoLoginUrl" name="ssoLoginUrl" placeholder="https://sso.mycompany.com/login"
+                    class="border border-gray-400 p-2 w-full">
+            </div>
+
+            <!-- Section for dynamic query parameters -->
+            <div id="dynamicParams" class="mb-4">
+                <label class="block text-gray-700 mb-2">Additional Query Parameters</label>
+            </div>
+            <button type="button" id="addParamButton"
+                class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Add
+                Parameter</button>
+        </form>
+
+        <button id="loadAdapterButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Load
+            Adapter</button>
+
+        <div id="messageDiv" class="bg-white p-4 rounded shadow-md hidden mt-4"></div>
+
+        <ul id="troubleshootingList" class="list-disc list-inside hidden mt-4 mb-4">
+            Troubleshooting SSO
+            <li class="mb-1">Download and install the <a
+                    href="https://chrome.google.com/webstore/detail/saml-tracer/mpdajninpobndbfcldcmbpnnbhibjmch"
+                    class="text-blue-600 hover:text-blue-800">SAML-Tracer</a> extension</li>
+            <li class="mb-1">Open the SAML Tracer plugin</li>
+            <li class="mb-1">Log into Five9 Agent Desktop Toolkit here using the SSO Login button</li>
+        </ul>
+    </div>
+
+    <script type="text/javascript" src="https://app.five9.com/dev/sdk/crm/latest/five9.crm.sdk.js"></script>
+
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            const iframe = document.getElementById('iframeContainer');
+            const form = document.getElementById('adapterForm');
+            const messageDiv = document.getElementById('messageDiv');
+            const troubleshootingList = document.getElementById('troubleshootingList');
+            const dynamicParamsContainer = document.getElementById('dynamicParams');
+            let paramCount = 0;
+
+            // Function to add a new dynamic parameter input field
+            function addParam() {
+                paramCount++;
+
+                const paramDiv = document.createElement('div');
+                paramDiv.classList.add('mb-2');
+                paramDiv.id = `param-${paramCount}`;
+
+                const paramNameInput = document.createElement('input');
+                paramNameInput.type = 'text';
+                paramNameInput.name = `paramName-${paramCount}`;
+                paramNameInput.placeholder = 'Parameter Name';
+                paramNameInput.classList.add('border', 'border-gray-400', 'p-2', 'w-2/5', 'mr-2');
+
+                const paramValueInput = document.createElement('input');
+                paramValueInput.type = 'text';
+                paramValueInput.name = `paramValue-${paramCount}`;
+                paramValueInput.placeholder = 'Parameter Value';
+                paramValueInput.classList.add('border', 'border-gray-400', 'p-2', 'w-2/5', 'mr-2');
+
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.innerText = 'Remove';
+                removeButton.classList.add('bg-red-500', 'hover:bg-red-700', 'text-white', 'font-bold', 'py-2', 'px-4', 'rounded');
+                removeButton.addEventListener('click', function () {
+                    paramDiv.remove();
+                });
+
+                paramDiv.appendChild(paramNameInput);
+                paramDiv.appendChild(paramValueInput);
+                paramDiv.appendChild(removeButton);
+
+                dynamicParamsContainer.appendChild(paramDiv);
+            }
+
+            // Add a new parameter input field on button click
+            document.getElementById('addParamButton').addEventListener('click', addParam);
+
+            // Load adapter button functionality
+            document.getElementById('loadAdapterButton').addEventListener('click', function () {
+                let adapterUrl = form['adapterUrl'].value;
+                let ssoLoginUrl = form['ssoLoginUrl'].value;
+
+                // Initialize query string parameters
+                let queryParams = [];
+
+                // Add SSO login URL if provided
+                if (ssoLoginUrl && ssoLoginUrl.length > 8) {
+                    queryParams.push(`idpLoginUrl=${encodeURIComponent(ssoLoginUrl)}`);
+                    troubleshootingList.classList.remove('hidden');
+                }
+
+                // Add CRM SDK flag
+                queryParams.push('f9crmapi=true');
+
+                // Collect additional dynamic parameters
+                for (let i = 0; i < paramCount; i++) {
+                    const paramName = form[`paramName-${i + 1}`]?.value;
+                    const paramValue = form[`paramValue-${i + 1}`]?.value;
+
+                    if (paramName && paramValue) {
+                        queryParams.push(`${encodeURIComponent(paramName)}=${encodeURIComponent(paramValue)}`);
+                    }
+                }
+
+                // Join the query parameters with '&'
+                let queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+
+                // Set iframe source with query parameters
+                iframe.src = `${adapterUrl}${queryString}`;
+                messageDiv.innerHTML = `<h2>Full adapter URL</h2><p>${iframe.src}</p>`;
+                messageDiv.classList.remove('hidden');
+            });
+
+            // Register CRM SDK API
+            const crmApi = window.Five9.CrmSdk.crmApi();
+            crmApi.registerApi({
+                getAdtConfig: () => {
+                    const config = {
+                        providerName: 'Demo CRM ADT adapter',
+                        myCallsTodayEnabled: true,
+                        myChatsTodayEnabled: true,
+                        myEmailsTodayEnabled: true,
+                        showContactInfo: false
+                    };
+                    return Promise.resolve(config);
+                },
+
+                saveLog: (params) => { },
+
+                screenPop: (params) => { },
+
+                getTodayCallsCount: () => {
+                    return Promise.resolve(77);
+                },
+
+                getTodayChatsCount: () => {
+                    return Promise.resolve(77);;
+                },
+
+                getTodayEmailsCount: () => {
+                    return Promise.resolve(11);;
+                },
+
+                openMyCallsToday: () => { },
+
+                openMyChatsToday: () => { },
+
+                enableClickToDial: () => { },
+
+                disableClickToDial: () => { }
+
+            });
+
+        });
+    </script>
+</body>
+
+</html>
