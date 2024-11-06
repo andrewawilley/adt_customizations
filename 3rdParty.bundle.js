@@ -2,13 +2,14 @@ define('3rdparty.bundle', [], function () {
 
     console.log("#### 3rdparty.bundle.js loaded");
 
+    let globalAuthStatus = false; // Global variable to store auth status
+    let authStatusInterval; // Store the interval ID for the polling loop
+
     function loadSdkInIframe(url, callback) {
-        // Create an iframe element
         var iframe = document.createElement('iframe');
-        iframe.style.display = 'none'; // Hide the iframe
+        iframe.style.display = 'none';
         document.body.appendChild(iframe);
 
-        // Wait for the iframe to load before adding the script
         iframe.onload = function () {
             console.log('#### Iframe loaded, injecting script:', url);
             loadScriptInIframe(iframe, url)
@@ -21,7 +22,6 @@ define('3rdparty.bundle', [], function () {
                 });
         };
 
-        // Function to load the script inside the iframe
         function loadScriptInIframe(iframe, url) {
             return new Promise((resolve, reject) => {
                 console.log('#### Loading SDK Script inside iframe:', url);
@@ -44,21 +44,37 @@ define('3rdparty.bundle', [], function () {
             });
         }
 
-        console.log('#### Setting up Five9 CRM SDK loading in iframe:', url);
-        iframe.src = 'about:blank'; // Set the iframe's src to a blank page to ensure it is loaded
+        iframe.src = 'about:blank';
     }
 
-    // Usage example
+    function updateAuthStatus() {
+        // Escape the ID with backslashes to ensure the selector is valid
+        const targetDiv = document.querySelector('#\\33 rdPartyComp-li-chat-details-top .custom-element-component div');
+        
+        if (targetDiv) {
+            targetDiv.innerHTML = `Auth Status: ${globalAuthStatus ? 'Authenticated' : 'Not Authenticated'}`;
+            targetDiv.style.color = globalAuthStatus ? 'green' : 'red';
+            console.log("#### Auth status updated in dynamic component");
+        } else {
+            console.warn("#### Target div for Auth Status not found yet");
+        }
+    }
+    
+
+    function startPollingAuthStatus() {
+        authStatusInterval = setInterval(() => {
+            updateAuthStatus();
+        }, 1000); // Poll every 1 second
+    }
+
     loadSdkInIframe('https://app.five9.com/dev/sdk/crm/latest/five9.crm.sdk.js', function (Five9Sdk) {
         if (Five9Sdk && Five9Sdk.CrmSdk) {
             console.log('#### SDK loaded from iframe:', Five9Sdk);
 
-            // Access the Interaction API
             const interactionApi = Five9Sdk.CrmSdk.interactionApi();
             if (interactionApi) {
                 console.log('#### Interaction API:', interactionApi);
 
-                // Register custom components
                 Five9Sdk.CrmSdk.customComponentsApi().registerCustomComponents({
                     template: `<adt-components>
                         <adt-component location="3rdPartyComp-li-chat-details-top" label="Auth Status: " style="flex-direction: column"></adt-component>
@@ -72,39 +88,12 @@ define('3rdparty.bundle', [], function () {
 
                 console.log("#### REGISTERING CALLBACKS");
 
-                // Register interaction API callbacks
+                startPollingAuthStatus(); // Start polling as soon as the SDK is loaded
+
                 interactionApi.subscribe({
                     chatAccepted: (interactionSubscriptionEvent) => {
-                        const authStatus = interactionSubscriptionEvent.chatData.customFields.find(field => field.key === 'ChatVariables.authenticated')?.value;
-
-                        // Locate the chat preview main container and add the auth status label there
-                        const chatPreviewContainer = document.getElementById('chat-preview-main-container');
-                        
-                        if (chatPreviewContainer) {
-                            // Check if the auth status indicator is already added to avoid duplicates
-                            let authStatusLabel = chatPreviewContainer.querySelector('.auth-status-label');
-                            
-                            if (!authStatusLabel) {
-                                // Create a new div for the auth status
-                                authStatusLabel = document.createElement('div');
-                                authStatusLabel.classList.add('auth-status-label');
-                                authStatusLabel.style.fontWeight = 'bold';
-                                authStatusLabel.style.marginTop = '10px';
-                    
-                                // Insert it just after the "Chat Preview" label
-                                const chatPreviewLabel = chatPreviewContainer.querySelector('.view-details label');
-                                if (chatPreviewLabel) {
-                                    chatPreviewLabel.insertAdjacentElement('afterend', authStatusLabel);
-                                }
-                            }
-                    
-                            // Update the auth status text and color
-                            authStatusLabel.innerHTML = `Auth Status: ${authStatus ? 'Authenticated' : 'Not Authenticated'}`;
-                            authStatusLabel.style.color = authStatus ? 'green' : 'red';
-                            console.log("#### Auth status indicator added to chat preview container");
-                        } else {
-                            console.error("#### Chat preview container not found on page");
-                        }
+                        globalAuthStatus = interactionSubscriptionEvent.chatData.customFields.find(field => field.key === 'ChatVariables.authenticated')?.value;
+                        console.log("#### Updated global auth status:", globalAuthStatus);
                     },
                     chatOffered: (interactionSubscriptionEvent) => {
                         console.log("#### Chat Offered:", interactionSubscriptionEvent);
