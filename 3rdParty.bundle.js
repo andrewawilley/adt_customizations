@@ -92,7 +92,7 @@ define('3rdparty.bundle', [], function () {
 
                 interactionApi.subscribe({
                     chatAccepted: (interactionSubscriptionEvent) => {
-                        globalAuthStatus = interactionSubscriptionEvent.chatData.customFields.find(field => field.key === 'ChatVariables.authenticated')?.value;
+                        globalAuthStatus = interactionSubscriptionEvent.chatData.customFields.find(field => field.key === 'ChatVariables.authStatus')?.value;
                         console.log("#### Updated global auth status:", globalAuthStatus);
                     },
                     chatOffered: (interactionSubscriptionEvent) => {
