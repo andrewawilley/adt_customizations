@@ -51,10 +51,12 @@ define('3rdparty.bundle', [], function () {
         // Escape the ID with backslashes to ensure the selector is valid
         const targetDiv = document.querySelector('#\\33 rdPartyComp-li-chat-details-top .custom-element-component div');
         
+        console.log(`#### Auth status:`, globalAuthStatus);
+
         if (targetDiv) {
-            targetDiv.innerHTML = `Auth Status: ${globalAuthStatus ? 'Authenticated' : 'Not Authenticated'}`;
+            targetDiv.innerHTML = `${globalAuthStatus ? 'Authenticated' : 'Not Authenticated'}`;
             targetDiv.style.color = globalAuthStatus ? 'green' : 'red';
-            console.log("#### Auth status updated in dynamic component");
+            console.debug("#### Auth status updated in dynamic component");
         } else {
             console.warn("#### Target div for Auth Status not found yet");
         }
