@@ -10,7 +10,7 @@
 
 ({
     f9libLoaded: function (cmp, evt, helper) {
-		let authStatus = "True"
+        let authStatus = "True"
         // This customization plays a prompt on connect/Talking
         // The prompt identified must be assigned to a skill that the agent is assigned to
 
@@ -135,23 +135,20 @@
         }
 
         window.Five9.CrmSdk.customComponentsApi().registerCustomComponents({
-                    template: `<adt-components>
-                    <adt-component location="3rdPartyComp-li-chat-details-top" label="Member Details" style="flex-direction: column">
-            <adt-input value="${authStatus}" id="authStatusCustomComponentInput" name="authStatus" label="Auth Status" placeholder="Authentication Status"
-                    onchange="callTabInputCallback"></adt-input>
-                    </adt-component>                      
-                    </adt-components>
-                    `,
-                    callbacks: {
-                    callTabInputCallback: function(params) {
-                        debugStream.debug({
-                            callee: arguments.callee.name,
-                            data: params
-                		});
-        			}                  
-       	 		}
+            template: `<adt-components>
+            <adt-component location="3rdPartyComp-li-chat-details-top" label="Auth Status: " style="flex-direction: column"></adt-component>                      
+                    </adt-components>`
+            ,
+            callbacks: {
+                callTabInputCallback: function (params) {
+                    debugStream.debug({
+                        callee: arguments.callee.name,
+                        data: params
+                    });
+                }
+            }
         });
-        
+
         // register callbacks to the interaction API
         interactionApi.subscribe({
             // When a call starts, set the current interaction ID and play the prompt with the specified name      
@@ -171,13 +168,7 @@
                 const currentInteractionId = interactionSubscriptionEvent.chatData.interactionId;
                 f9UserId = interactionSubscriptionEvent.chatData.agentId;
                 f9UserName = interactionSubscriptionEvent.chatData.agentName;
-
                 console2.log("Chat Offered:", interactionSubscriptionEvent);
-                console2.log(`Current Interaction Id: ${currentInteractionId}`);
-            				console2.log('Registering Custom Component ON OFFER')
-                
-                console2.log("Should be registered DURING OFFER")
-            
             },
             chatAccepted: (interactionSubscriptionEvent) => {
                 const currentInteractionId = interactionSubscriptionEvent.chatData.interactionId;
@@ -193,26 +184,46 @@
                 });
                 let authStatus = customFieldData['ChatVariables.authenticated'];
                 console2.log(`Auth Status: ${customFieldData['ChatVariables.authenticated']}`)
-                
-				console2.log('Registering Custom Component')
-                window.Five9.CrmSdk.customComponentsApi().registerCustomComponents({
-                    template: `<adt-components>
-                      <adt-component location="3rdPartyComp-li-chat-details-top" label="Member Details" style="flex-direction: column">
-                      <adt-input value="${authStatus}" id="authStatusCustomComponentInput" name="authStatus" label="Auth Status" placeholder="Authentication Status"
-                                   onchange="callTabInputCallback"></adt-input>
-                      </adt-component>                      
-                    </adt-components>
-                    `,
-                    callbacks: {
-                      callTabInputCallback: function(params) {
-                        debugStream.debug({
-                          callee: arguments.callee.name,
-                          data: params
-                        });
-                      }                  
+
+                //console2.log('Registering Custom Component')
+                //window.Five9.CrmSdk.customComponentsApi().registerCustomComponents({
+                //    template: `<adt-components>
+                //    <adt-component location="3rdPartyComp-li-chat-details-top" label="Member Details: Authenticated ${authStatus}" style="flex-direction: column"></adt-component>                      
+                //    </adt-components>
+                //    `,
+                //    callbacks: {
+                //      callTabInputCallback: function(params) {
+                //        debugStream.debug({
+                //          callee: arguments.callee.name,
+                //          data: params
+                //        });
+                //      }                  
+                //    }
+                //  });
+                // console2.log("Should be registered")
+                // 
+
+                // Select the first iframe on the page
+                var iframe = document.querySelector('iframe');
+                console2.log("Iframe:", iframe);
+                if (iframe) {
+                    console2.log("Iframe Found")
+                    // Access the content of the iframe
+                    var iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                    // Find the target div inside the iframe
+                    var targetDiv = iframeDocument.getElementById('3rdPartyComp-li-chat-details-top');
+
+                    if (targetDiv) {
+                        // Find the label inside the target div
+                        var label = targetDiv.querySelector('label');
+
+                        if (label) {
+                            // Change the content of the label
+                            label.innerHTML = 'New Content Here';
+                        }
                     }
-                  });
-                console2.log("Should be registered")
+                }
             },
         });
 
@@ -223,7 +234,14 @@
                 console2.debug("context:", context)
                 console2.debug("payLoad:", payLoad)
 
-                // optional, do something with the interaction data
+                if (promptPlayOnCallTypes.includes(payLoad.callType) && payLoad.state == "TALKING" && context.eventReason == "CONNECTED") {
+                    console2.debug(`context.eventReason: ${context.eventReason}`)
+                    console2.debug(`payLoad.state: ${payLoad.state}`)
+                    console2.debug(`payLoad.callType: ${payLoad.callType}`)
+                    console2.debug(`promptPlayOnCallTypes.includes(payLoad.callType): ${promptPlayOnCallTypes.includes(payLoad.callType)}`)
+                    console2.debug(`Playing Prompt ${promptNamePlayOnConnect}, f9UserId: ${f9UserId}, currentInteractionId: ${payLoad.id}`)
+                    playPromptByName(promptNamePlayOnConnect, f9UserId, payLoad.id);
+                }
             }
         });
     },

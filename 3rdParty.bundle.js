@@ -2,7 +2,7 @@ define('3rdparty.bundle', [], function () {
 
     console.log("#### 3rdparty.bundle.js loaded");
 
-    let globalAuthStatus = false; // Global variable to store auth status
+    let globalAuthStatus = null; // Global variable to store auth status
     let authStatusInterval; // Store the interval ID for the polling loop
 
     function loadSdkInIframe(url, callback) {
@@ -48,20 +48,22 @@ define('3rdparty.bundle', [], function () {
     }
 
     function updateAuthStatus() {
-        // Escape the ID with backslashes to ensure the selector is valid
         const targetDiv = document.querySelector('#\\33 rdPartyComp-li-chat-details-top .custom-element-component div');
-        
-        console.log(`#### Auth status:`, globalAuthStatus);
 
-        if (targetDiv) {
+        if (globalAuthStatus !== null && targetDiv) { // Check if authStatus has a valid boolean value
             targetDiv.innerHTML = `${globalAuthStatus ? 'Authenticated' : 'Not Authenticated'}`;
             targetDiv.style.color = globalAuthStatus ? 'green' : 'red';
+            targetDiv.style.display = 'flex';
+            targetDiv.style.justifyContent = 'center';
+            targetDiv.style.alignItems = 'center';
+            targetDiv.style.textAlign = 'center';
             console.debug("#### Auth status updated in dynamic component");
-        } else {
-            console.warn("#### Target div for Auth Status not found yet");
+        } else if (targetDiv) {
+            targetDiv.innerHTML = ""; // Clear content if authStatus is null
+            console.warn("#### Auth status is not available yet");
         }
     }
-    
+
 
     function startPollingAuthStatus() {
         authStatusInterval = setInterval(() => {
@@ -71,12 +73,8 @@ define('3rdparty.bundle', [], function () {
 
     loadSdkInIframe('https://app.five9.com/dev/sdk/crm/latest/five9.crm.sdk.js', function (Five9Sdk) {
         if (Five9Sdk && Five9Sdk.CrmSdk) {
-            console.log('#### SDK loaded from iframe:', Five9Sdk);
-
             const interactionApi = Five9Sdk.CrmSdk.interactionApi();
             if (interactionApi) {
-                console.log('#### Interaction API:', interactionApi);
-
                 Five9Sdk.CrmSdk.customComponentsApi().registerCustomComponents({
                     template: `<adt-components>
                         <adt-component location="3rdPartyComp-li-chat-details-top" label="Auth Status: " style="flex-direction: column"></adt-component>
@@ -88,21 +86,32 @@ define('3rdparty.bundle', [], function () {
                     }
                 });
 
-                console.log("#### REGISTERING CALLBACKS");
-
-                startPollingAuthStatus(); // Start polling as soon as the SDK is loaded
+                startPollingAuthStatus();
 
                 interactionApi.subscribe({
                     chatAccepted: (interactionSubscriptionEvent) => {
-                        console.log("#### Chat Data:", interactionSubscriptionEvent.chatData.customFields);
                         globalAuthStatus = interactionSubscriptionEvent.chatData.customFields.find(field => field.key === 'chatSessionTrackingData.authStatus')?.value === 'true';
                         console.log("#### Updated global auth status:", globalAuthStatus);
                     },
-                    chatOffered: (interactionSubscriptionEvent) => {
-                        console.log("#### Chat Offered:", interactionSubscriptionEvent);
-                    }
-                });
+                    
+                    chatOffered: () => {
+                        globalAuthStatus = null; // Reset to null when chat ends
+                        console.log("#### Reset global auth status");
+                    },
 
+                    chatEnded: () => {
+                        globalAuthStatus = null; // Reset to null when chat ends
+                        console.log("#### Reset global auth status");
+                    },
+                    chatRejected: () => {
+                        globalAuthStatus = null; // Reset to null when chat ends
+                        console.log("#### Reset global auth status");
+                    },
+                    chatTransferred: () => {
+                        globalAuthStatus = null; // Reset to null when chat ends
+                        console.log("#### Reset global auth status");
+                    },
+                });
             } else {
                 console.error("#### Interaction API not available");
             }
