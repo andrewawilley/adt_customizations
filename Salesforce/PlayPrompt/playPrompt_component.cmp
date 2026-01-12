@@ -5,6 +5,9 @@
                       targetFields="{!v.record}"
                       fields="Name,RecordType.Name,Account.Name,Opportunity.Name"
                       mode="VIEW"/>
+
+    <lightning:button label="Play Prompt" variant="brand" onclick="{!c.playPrompt}"/>
+
     <ltng:require scripts="{!$Resource.five9_plugin_api}" afterScriptsLoaded="{!c.f9libLoaded}"/>
     <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
 </aura:component>

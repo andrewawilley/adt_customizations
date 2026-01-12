@@ -1,0 +1,23 @@
+<aura:component implements="flexipage:availableForAllPageTypes" access="global" controller="CSCFive9SDKController">
+    <lightning:workspaceAPI aura:id="workspace"/>
+    <ltng:require scripts="{!$Resource.five9_plugin_api}" afterScriptsLoaded="{!c.f9libLoaded}"/>
+
+    <aura:attribute name="caseId" type="String"/>
+    <aura:attribute name="contactId" type="String"/>
+    <aura:attribute name="accountId" type="String"/>
+    <aura:attribute name="interactionId" type="String"/>
+    <aura:attribute name="activeCallTabId" type="String"/>
+    <aura:attribute name="callTransfered" type="Boolean" default="false"/>
+    <aura:attribute name="TransferCallNum" type="Integer" default="0"/>
+    <aura:attribute name="DataPassed" type="Boolean" default="false"/>
+    <aura:attribute name="currentUserRole" type="String"/>
+    <aura:attribute name="createdTabList" type="List"/>
+    <aura:attribute name="dummyAccountId" type="String"/>
+    <aura:attribute name="dummyContactId" type="String"/>
+
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+
+    <lightning:messageChannel type="CSCFive9CallDataHelperChannel__c" onMessage="{!c.handleMessage}" scope="APPLICATION"/>
+    <lightning:messageChannel type="CSCTransferHelperChannel__c" aura:id="transferChannel" onMessage="{!c.handleTransferMessage}" scope="APPLICATION"/>
+    <lightning:messageChannel type="CSCTransferSDKPluginChannel__c" aura:id="sdkPluginChannel" scope="APPLICATION"/>
+</aura:component>
