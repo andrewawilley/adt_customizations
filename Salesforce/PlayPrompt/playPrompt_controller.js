@@ -21,10 +21,10 @@
     const promptPlayOnCallTypes = [
       "AGENT",
       "QUEUE_CALLBACK",
-      //"MANUAL",
+      "MANUAL",
       "INBOUND",
-      //"OUTBOUND",
-      //"PREVIEW"
+      "OUTBOUND",
+      "PREVIEW"
     ];
 
     const promptNamePlayOnConnect = `QRL`;
@@ -166,6 +166,11 @@
           console2.debug(`Playing Prompt ${promptNamePlayOnConnect}, f9UserId: ${f9UserId}, currentInteractionId: ${payLoad.id}`)
           playPromptByName(promptNamePlayOnConnect, f9UserId, payLoad.id);
         }
+      },
+      "29": function(payLoad, context) {
+        console2.debug("Statistics Updated Event")
+        console2.debug("context:", context)
+        console2.debug("payLoad:", payLoad)
       }
     });
   },

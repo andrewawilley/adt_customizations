@@ -1,0 +1,183 @@
+
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Five9 Desktop Toolkit</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+
+    <style>
+        #iframeContainer {
+            padding: 10px;
+            border: 2px solid #ccc;
+            overflow: hidden;
+            resize: both;
+            /* Default docked state */
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 500px;
+            height: 700px; /* Increased to house iframe and controls */
+        }
+
+        #iframeContainer iframe {
+            width: 100%;
+            height: 90%; /* This will be dynamically set to 500px */
+            border: none;
+        }
+
+        #dragHandle {
+            background-color: #f8f8f8;
+            padding: 10px;
+            cursor: move;
+            border-bottom: 1px solid #ccc;
+            display: none; /* Hidden by default */
+        }
+
+        .undocked #dragHandle {
+            display: block; /* Show drag handle in undocked mode */
+        }
+
+        .undocked {
+            position: absolute;
+        }
+
+        .docked {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+        }
+
+        #dockButton {
+            margin-top: 10px;
+            display: block; /* Ensure the button remains visible */
+        }
+    </style>
+</head>
+
+<body class="flex">
+    <!-- Movable iFrame Container -->
+    <div id="iframeContainer" class="shadow-lg docked">
+        <div id="dragHandle">Drag Me</div>
+        <iframe id="iframe" src=""></iframe>
+        <button id="dockButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Undock</button>
+    </div>
+
+    <div class="w-full bg-gray-100 p-4">
+        <form id="adapterForm">
+            <div class="mb-4">
+                <label for="adapterUrl" class="block text-gray-700 mb-2">Adapter URL</label>
+                <input type="text" id="adapterUrl" name="adapterUrl" value="https://app.five9.com/clients/integrations/adt.main.html" class="border border-gray-400 p-2 w-full">
+            </div>
+            <div class="mb-4">
+                <label for="ssoLoginUrl" class="block text-gray-700 mb-2">IdP Initiated Login URL for SSO</label>
+                <input type="text" id="ssoLoginUrl" name="ssoLoginUrl" placeholder="https://sso.mycompany.com/login" class="border border-gray-400 p-2 w-full">
+            </div>
+        </form>
+        <button id="loadAdapterButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Load Adapter</button>
+
+        <div id="messageDiv" class="bg-white p-4 rounded shadow-md hidden mt-4"></div>
+    </div>
+
+    <script type="text/javascript" src="https://app.five9.com/dev/sdk/crm/latest/five9.crm.sdk.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            const iframe = document.getElementById('iframe');
+            const iframeContainer = document.getElementById('iframeContainer');
+            const form = document.getElementById('adapterForm');
+            const dockButton = document.getElementById('dockButton');
+            const dragHandle = document.getElementById('dragHandle');
+            let isDocked = true; // Initial state is docked
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+
+            // Load Adapter Button Click Event
+            document.getElementById('loadAdapterButton').addEventListener('click', function () {
+                let adapterUrl = form['adapterUrl'].value;
+                let ssoLoginUrl = form['ssoLoginUrl'].value;
+                let fullUrl = adapterUrl;
+
+                if (ssoLoginUrl && ssoLoginUrl.length > 8) {
+                    fullUrl += `?idpLoginUrl=${encodeURIComponent(ssoLoginUrl)}`;
+                }
+
+                iframe.src = fullUrl;
+                iframe.style.height = '500px'; // Set iframe height to 500px
+                iframeContainer.style.height = '620px'; // Ensure container height fits iframe and controls
+
+                document.getElementById('messageDiv').innerHTML = `<h2>Full adapter URL</h2><p>${iframe.src}</p>`;
+                document.getElementById('messageDiv').classList.remove('hidden');
+            });
+
+            // Auto-resize iframe based on content
+            iframe.addEventListener('load', function () {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    iframe.style.height = '500px'; // Explicitly set iframe height to 500px on load
+                } catch (e) {
+                    console.log('Error accessing iframe content:', e);
+                }
+            });
+
+            // Make the iFrame draggable in undocked mode
+            dragHandle.addEventListener('mousedown', function (e) {
+                if (!isDocked) {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    initialX = iframeContainer.offsetLeft;
+                    initialY = iframeContainer.offsetTop;
+                    document.body.style.cursor = 'move';
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('mousemove', function (e) {
+                if (isDragging && !isDocked) {
+                    let currentX = e.clientX;
+                    let currentY = e.clientY;
+                    let dx = currentX - startX;
+                    let dy = currentY - startY;
+
+                    iframeContainer.style.left = initialX + dx + 'px';
+                    iframeContainer.style.top = initialY + dy + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', function () {
+                isDragging = false;
+                document.body.style.cursor = 'default';
+            });
+
+            // Toggle between docked and undocked modes
+            dockButton.addEventListener('click', function () {
+                if (isDocked) {
+                    // Switch to undocked mode
+                    iframeContainer.classList.remove('docked');
+                    iframeContainer.classList.add('undocked');
+                    dockButton.textContent = 'Dock';
+                    isDocked = false;
+                    dragHandle.style.display = 'block'; // Show drag handle
+                } else {
+                    // Switch to docked mode
+                    iframeContainer.classList.remove('undocked');
+                    iframeContainer.classList.add('docked');
+                    iframeContainer.style.left = ''; // Reset position
+                    iframeContainer.style.top = '';
+                    dockButton.textContent = 'Undock';
+                    isDocked = true;
+                    dragHandle.style.display = 'none'; // Hide drag handle
+                }
+            });
+
+            // Ensure the drag handle is hidden on initial load (docked state)
+            if (isDocked) {
+                dragHandle.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
+
