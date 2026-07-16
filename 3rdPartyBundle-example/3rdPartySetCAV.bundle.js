@@ -1,6 +1,6 @@
 define('3rdparty.bundle', [], function () {
 
-    console.log("#### 3rdparty.bundle.js loaded");
+    console.log("#### 3rdparty.bundle.js loaded (new)");
 
     let globalAuthStatus = null; // Global variable to store auth status
     let authStatusInterval; // Store the interval ID for the polling loop
@@ -56,6 +56,12 @@ define('3rdparty.bundle', [], function () {
             let targetCavId = '';
             let currentInteractionId = '';
             let agentId = '';
+            const sessionIdCav = 'Call.session_id';
+            const targetCav = 'Custom.crm_LeadID_txt';
+            const cavSetStateByInteractionId = {};
+            let cachedDomainCavDefinitions = null;
+            let cachedSessionIdCavDef = null;
+            let cachedTargetCavDef = null;
 
             if (interactionApi) {
                 // Helper: split "Group.Name" where Name may contain dots
@@ -128,72 +134,219 @@ define('3rdparty.bundle', [], function () {
                     }
                 };
 
-                interactionApi.subscribe({
-                    callStarted: (params) => {
-                        const targetCav = 'Custom.crm_LeadID_txt'; // Change to desired CAV (format: "Group.Name"; Name may contain dots)
-                        const { group: targetCavGroup, name: targetCavName } = parseTargetCav(targetCav);
+                const { group: targetCavGroup, name: targetCavName } = parseTargetCav(targetCav);
+                const { group: sessionIdCavGroup, name: sessionIdCavName } = parseTargetCav(sessionIdCav);
 
-                        currentInteractionId = params?.callData?.interactionId;
-                        agentId = params?.callData?.agentId || agentId;
-                        console.log(`### Current Call ID Updated: ${currentInteractionId}`);
+                const getInteractionSetState = (interactionId) => {
+                    if (!interactionId) return null;
+                    if (!cavSetStateByInteractionId[interactionId]) {
+                        cavSetStateByInteractionId[interactionId] = {
+                            completed: false,
+                            inFlight: false,
+                            lastAttemptAt: 0,
+                        };
+                    }
+                    return cavSetStateByInteractionId[interactionId];
+                };
 
-                        if (!currentInteractionId) {
-                            console.warn('### No interactionId on callStarted; skipping CAV set');
+                const resolveTargetCavDefinitions = async () => {
+                    if (cachedDomainCavDefinitions && cachedSessionIdCavDef && cachedTargetCavDef) {
+                        return {
+                            domainCavs: cachedDomainCavDefinitions,
+                            sessionIdDef: cachedSessionIdCavDef,
+                            targetCavDef: cachedTargetCavDef,
+                        };
+                    }
+
+                    const orgId = await getOrgId();
+                    if (!orgId) {
+                        console.warn('### Cannot resolve orgId; aborting CAV lookup');
+                        return null;
+                    }
+
+                    const domainCavs = await getDomainCAVs(orgId);
+                    if (!domainCavs || domainCavs.length === 0) {
+                        console.warn('### No domain CAVs returned; cannot find target CAV');
+                        return null;
+                    }
+
+                    console.log('### Looking for CAV definitions in domain CAVs...');
+
+                    const sessionIdDef = domainCavs.find((cav) => cav && cav.group === sessionIdCavGroup && cav.name === sessionIdCavName);
+                    if (!sessionIdDef) {
+                        console.warn(`### Session ID CAV not found in domain CAVs: ${sessionIdCav}`);
+                        return null;
+                    }
+                    console.log(`### Found session_id definition: id=${sessionIdDef.id}`);
+
+                    const targetCavDef = domainCavs.find((cav) => cav && cav.group === targetCavGroup && cav.name === targetCavName);
+                    if (!targetCavDef) {
+                        console.warn(`### Target CAV not found in domain CAVs: ${targetCav}`);
+                        const groups = [...new Set(domainCavs.filter(Boolean).map((c) => c?.group).filter(Boolean))];
+                        console.debug('### Available domain CAV groups:', groups);
+                        return null;
+                    }
+                    console.log(`### Found target CAV definition: id=${targetCavDef.id}`);
+
+                    cachedDomainCavDefinitions = domainCavs;
+                    cachedSessionIdCavDef = sessionIdDef;
+                    cachedTargetCavDef = targetCavDef;
+                    targetCavId = String(targetCavDef.id);
+
+                    return {
+                        domainCavs,
+                        sessionIdDef,
+                        targetCavDef,
+                    };
+                };
+
+                const getCallCavs = async (interactionId) => {
+                    const cavsResp = await interactionApi.getCav({ interactionId });
+                    console.log('### getCav response:', JSON.stringify(cavsResp).substring(0, 500));
+                    return Array.isArray(cavsResp)
+                        ? cavsResp
+                        : (Array.isArray(cavsResp?.cavs) ? cavsResp.cavs : []);
+                };
+
+                const ensureTargetCavSet = async (interactionId, options = {}) => {
+                    const state = getInteractionSetState(interactionId);
+                    if (!interactionId || !state) {
+                        console.warn('### No interactionId available; skipping CAV set attempt');
+                        return;
+                    }
+
+                    if (state.completed) {
+                        return;
+                    }
+
+                    if (state.inFlight) {
+                        console.debug(`### CAV set already in flight for interaction ${interactionId}`);
+                        return;
+                    }
+
+                    const now = Date.now();
+                    if (now - state.lastAttemptAt < 1000) {
+                        console.debug(`### Skipping duplicate CAV set attempt for interaction ${interactionId}`);
+                        return;
+                    }
+
+                    state.inFlight = true;
+                    state.lastAttemptAt = now;
+
+                    try {
+                        const defs = await resolveTargetCavDefinitions();
+                        if (!defs) {
                             return;
                         }
 
-                        // Fetch orgId -> domain CAVs -> find target -> set value
-                        (async () => {
-                            try {
-                                const orgId = await getOrgId();
-                                if (!orgId) {
-                                    console.warn('### Cannot resolve orgId; aborting CAV lookup');
-                                    return;
-                                }
+                        const { sessionIdDef, targetCavDef } = defs;
+                        let callCavs = Array.isArray(options.callCavs) ? options.callCavs : null;
+                        let variablesById = options.variablesById && typeof options.variablesById === 'object'
+                            ? options.variablesById
+                            : null;
 
-                                const domainCavs = await getDomainCAVs(orgId);
-                                if (!domainCavs || domainCavs.length === 0) {
-                                    console.warn('### No domain CAVs returned; cannot find target CAV');
-                                    return;
-                                }
-                                
-                                console.log(`### Looking for target domain CAV: group="${targetCavGroup}", name="${targetCavName}"`);
-                                console.log(`### domaincavs=`, domainCavs);
-                                const match = domainCavs.find((cav) => cav && cav.group === targetCavGroup && cav.name === targetCavName);
-                                if (!match) {
-                                    console.warn(`### Target domain CAV not found: group="${targetCavGroup}", name="${targetCavName}"`);
-                                    const groups = [...new Set(domainCavs.map((c) => c?.group).filter(Boolean))];
-                                    console.debug('### Available domain CAV groups:', groups);
-                                    return;
-                                }
+                        if (!callCavs && !variablesById) {
+                            callCavs = await getCallCavs(interactionId);
+                        }
 
-                                console.log(`### Found target domain CAV: group="${targetCavGroup}", name="${targetCavName}", id=${match.id}`);
+                        const sessionIdKey = String(sessionIdDef.id);
+                        const targetCavKey = String(targetCavDef.id);
+                        const sessionCav = callCavs
+                            ? callCavs.find((c) => c && String(c.id) === sessionIdKey)
+                            : null;
+                        const targetCavValue = variablesById
+                            ? variablesById[targetCavKey]
+                            : callCavs?.find((c) => c && String(c.id) === targetCavKey)?.value;
+                        const sessionIdValue = variablesById
+                            ? variablesById[sessionIdKey]
+                            : sessionCav?.value;
 
-                                await interactionApi.setCav({
-                                    interactionId: currentInteractionId,
-                                    cavList: [{ id: match.id, value: String(currentInteractionId) }],
-                                });
-                                console.log('### Successfully set CAV value for ID:', match.id);
+                        if (callCavs) {
+                            console.log('### Found session_id CAV in call:', sessionCav);
+                        }
+                        console.log(`### Session ID value: "${sessionIdValue || ''}"`);
 
-                                // Verify by fetching call CAVs for the interaction
-                                try {
-                                    const verifyResp = await interactionApi.getCav({ interactionId: currentInteractionId });
-                                    const cavs2 = Array.isArray(verifyResp)
-                                        ? verifyResp
-                                        : (Array.isArray(verifyResp?.cavs) ? verifyResp.cavs : []);
-                                    const verified = cavs2.find((c) => c && c.id === match.id);
-                                    if (verified?.value == String(currentInteractionId)) {
-                                        console.log('### Verified CAV value persisted:', verified);
-                                    } else {
-                                        console.warn('### CAV value did not verify; got:', verified);
-                                    }
-                                } catch (vErr) {
-                                    console.warn('### Verification getCav failed:', vErr);
-                                }
-                            } catch (err) {
-                                console.error('### Error executing domain CAV lookup/set flow:', err);
+                        if (!sessionIdValue) {
+                            console.warn('### Call.session_id value is empty or not found');
+                            if (callCavs) {
+                                console.debug('### Available call CAVs:', callCavs.filter(Boolean).map(c => `${c.group}.${c.name}=${c.value}`).slice(0, 20));
+                            } else if (variablesById) {
+                                console.debug('### Available websocket variable ids:', Object.keys(variablesById).slice(0, 20));
                             }
-                        })();
+                            return;
+                        }
+
+                        if (String(targetCavValue || '') === String(sessionIdValue)) {
+                            state.completed = true;
+                            console.log(`### ${targetCav} already set to desired value for interaction ${interactionId}`);
+                            return;
+                        }
+
+                        console.log(`### Setting ${targetCav} (id=${targetCavDef.id}) = "${sessionIdValue}" via ${options.source || 'unknown source'}`);
+
+                        await interactionApi.setCav({
+                            interactionId,
+                            cavList: [{ id: targetCavDef.id, value: String(sessionIdValue) }],
+                        });
+
+                        state.completed = true;
+                        console.log('### Successfully set CAV value');
+                    } catch (err) {
+                        console.error('### Error executing domain CAV lookup/set flow:', err);
+                    } finally {
+                        state.inFlight = false;
+                    }
+                };
+
+                interactionApi.subscribe({
+                    callAccepted: (params) => {
+                        currentInteractionId = params?.callData?.interactionId;
+                        agentId = params?.callData?.agentId || agentId;
+                        console.log(`### Current Interaction ID Updated: ${currentInteractionId}`);
+
+                        if (!currentInteractionId) {
+                            console.warn('### No interactionId on callAccepted; skipping CAV set');
+                            return;
+                        }
+
+                        ensureTargetCavSet(currentInteractionId, { source: 'callAccepted' });
+                    },
+                    callEnded: (params) => {
+                        const endedInteractionId = params?.callData?.interactionId;
+                        if (endedInteractionId && cavSetStateByInteractionId[endedInteractionId]) {
+                            delete cavSetStateByInteractionId[endedInteractionId];
+                        }
+                    },
+                });
+
+                interactionApi.subscribeWsEvent({
+                    '4': (payLoad, context) => {
+                        try {
+                            const interactionId = payLoad?.id || currentInteractionId;
+                            const variablesById = payLoad?.variables;
+                            if (!interactionId) {
+                                console.debug('### WS event 4 missing interaction id; skipping CAV verification');
+                                return;
+                            }
+
+                            if (currentInteractionId && interactionId !== currentInteractionId) {
+                                return;
+                            }
+
+                            console.debug('### WS event 4 received for CAV verification:', {
+                                interactionId,
+                                eventReason: context?.eventReason,
+                                state: payLoad?.state,
+                                targetCavId,
+                            });
+
+                            ensureTargetCavSet(interactionId, {
+                                source: `ws event 4 (${context?.eventReason || 'UPDATED'})`,
+                                variablesById,
+                            });
+                        } catch (e) {
+                            console.error('### Error handling WS event 4 for CAV verification:', e);
+                        }
                     },
                 });
 
