@@ -5,4 +5,16 @@ scratch/
 
 .DS_Store
 
-local*.*
+# Generated TLS certs/keys for the local test server (created by localserve.py).
+# Never commit private keys; localserve.py regenerates them on first run.
+localhost.crt
+localhost.key
+localhost.pem
+localhost-key.pem
+*.key
+*.crt
+*.pem
+
+# Python cache
+__pycache__/
+*.pyc
